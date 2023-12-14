@@ -253,8 +253,8 @@ public class Main {
         //System.out.println("Responding: " + serverResponse);
     }
 
-    public static boolean deleteKey(JsonObject jsonObject, JsonArray targetKey) {
-        JsonObject currentObject = jsonObject;
+    public static boolean deleteKey(JsonArray targetKey) {
+        JsonObject currentObject = jsonDb;
         int i = 0;
         for (; i < targetKey.size() - 1; i++) {
             if (currentObject.has(targetKey.get(i).getAsString())) {
@@ -288,7 +288,7 @@ public class Main {
         JsonObject response = new JsonObject();
         rwl.writeLock().lock();
         try {
-            if (deleteKey(jsonDb, userInput.getAsJsonArray("key"))) {
+            if (deleteKey(userInput.getAsJsonArray("key"))) {
                 response.addProperty("response", "OK");
             } else {
                 response.addProperty("response", "ERROR");
