@@ -22,6 +22,7 @@ public class Main {
     private static final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
     static boolean closeServer = false;
     static JsonObject jsonDb = new JsonObject();
+    static Gson gson = new Gson();
 
     static final String filePath = "C:\\Users\\erics\\IdeaProjects\\JSON Database (Java)\\JSON Database (Java)\\task\\src\\server\\db.json";
     //static final String filePath = "./JSON Database/task/src/server/db.json";
@@ -48,7 +49,6 @@ public class Main {
                 DataInputStream input = new DataInputStream(socket.getInputStream());
                 DataOutputStream output  = new DataOutputStream(socket.getOutputStream());
                 recordRequest = input.readUTF();
-                Gson gson = new Gson();
                 clientInput = gson.fromJson(recordRequest, JsonObject.class);
                 System.out.println("Received: " + clientInput.toString());
                 String requestType = String.valueOf(clientInput.get("type"))
@@ -81,10 +81,10 @@ public class Main {
     public static void main(String[] args) throws IOException, InterruptedException {
         System.out.println("Server started!");
         try {
+            // first two lines here can be commented out to persist the db between server sessions
             jsonDb = new JsonObject();
             serialize(jsonDb.toString(), filePath);
             String dbString = (String) deserialize(filePath);
-            Gson gson = new Gson();
             jsonDb = gson.fromJson(dbString, JsonObject.class);
             System.out.println("DB loaded");
         } catch (IOException | ClassNotFoundException e) {
@@ -108,7 +108,6 @@ public class Main {
         rwl.readLock().lock();
         try {
             String dbString = (String) deserialize(filePath);
-            Gson gson = new Gson();
             jsonDb = gson.fromJson(dbString, JsonObject.class);
             System.out.println("DB loaded");
         } catch (IOException | ClassNotFoundException e) {
@@ -139,7 +138,7 @@ public class Main {
         if (targetKey.isJsonArray()) {
             System.out.println("JsonArray keyPath found");
             complexKeyPath = targetKey.getAsJsonArray();
-            targetValue = getNestedJsonValue(jsonDb, complexKeyPath);
+            targetValue = getNestedJsonValue(complexKeyPath);
         }
         if (targetValue == null) {
             response.addProperty("response", "ERROR");
@@ -159,16 +158,15 @@ public class Main {
         }
 
 
-        Gson gson = new Gson();
         String serverResponse = gson.toJson(response);
         output.writeUTF(serverResponse);
         //System.out.println("Responding: " + serverResponse);
     }
 
-    public static JsonElement getNestedJsonValue(JsonObject jsonDb, JsonArray keyArray) {
+    public static JsonElement getNestedJsonValue(JsonArray complexKeyPath) {
         JsonElement currentElement = jsonDb;
 
-        for (JsonElement keyElement : keyArray) {
+        for (JsonElement keyElement : complexKeyPath) {
             System.out.println("Key: " + keyElement);
             if (currentElement.isJsonObject()) {
                 String key = keyElement.getAsString();
@@ -187,15 +185,14 @@ public class Main {
         return currentElement;
     }
 
-    public static void traverseAndModify(JsonObject jsonObject,
-                                         JsonArray complexKeyPath,
+    public static void traverseAndModify(JsonArray complexKeyPath,
                                          JsonElement newValue) {
 
         String[] keys = new String[complexKeyPath.size()];
         for (int i = 0; i < complexKeyPath.size(); i++) {
             keys[i] = complexKeyPath.get(i).getAsString().replaceAll("\"", "");
         }
-        JsonObject currentObject = jsonObject;
+        JsonObject currentObject = jsonDb;
         for (int i = 0; i < keys.length - 1; i++) {
             if (!currentObject.has(keys[i])) {
                 currentObject.add(keys[i], new JsonObject());
@@ -211,7 +208,6 @@ public class Main {
         rwl.readLock().lock();
         try {
             String dbString = (String) deserialize(filePath);
-            Gson gson = new Gson();
             jsonDb = gson.fromJson(dbString, JsonObject.class);
             System.out.println("DB loaded");
         } catch (IOException | ClassNotFoundException e) {
@@ -232,17 +228,17 @@ public class Main {
             }
 
             if (targetKey.isJsonArray()) {
-                traverseAndModify(jsonDb, targetKey.getAsJsonArray(), userInput.get("value"));
+                traverseAndModify(targetKey.getAsJsonArray(), userInput.get("value"));
             }
 
             serialize(jsonDb.toString(), filePath);
 
             System.out.println("DB written");
-            Gson gson = new GsonBuilder()
+            Gson formattedGson = new GsonBuilder()
                     .setPrettyPrinting()
                     .create();
 
-            System.out.println(gson.toJson(jsonDb));
+            System.out.println(formattedGson.toJson(jsonDb));
 
             response.addProperty("response", "OK");
 
@@ -252,7 +248,6 @@ public class Main {
         } finally {
             rwl.writeLock().unlock();
         }
-        Gson gson = new Gson();
         String serverResponse = gson.toJson(response);
         output.writeUTF(serverResponse);
         //System.out.println("Responding: " + serverResponse);
@@ -282,7 +277,6 @@ public class Main {
         rwl.readLock().lock();
         try {
             String dbString = (String) deserialize(filePath);
-            Gson gson = new Gson();
             jsonDb = gson.fromJson(dbString, JsonObject.class);
             System.out.println("DB loaded");
         } catch (IOException | ClassNotFoundException e) {
@@ -306,7 +300,6 @@ public class Main {
             rwl.writeLock().unlock();
         }
 
-        Gson gson = new Gson();
         String serverResponse = gson.toJson(response);
         output.writeUTF(serverResponse);
         //System.out.println("Responding: " + serverResponse);
